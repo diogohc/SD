@@ -7,6 +7,7 @@ import java.io.*;
 public class TCPClient extends Client{
     private static int serversocket = 6000;
 
+    String path = "C:\\Users\\joaog\\OneDrive\\Ambiente de Trabalho\\Cadeiras de licenciatura\\SD\\diretorias";
 
     public static void main(String[] args) {
         // args[0] <- hostname of destination
@@ -106,9 +107,63 @@ public class TCPClient extends Client{
     }
 
     private static void listar_files(DataInputStream in,DataOutputStream out) throws IOException {
-        String listar = "listar";
-        out.writeUTF(listar);
+        out.writeUTF("listar");
+        String diretoria_atual= in.readUTF();//diretoria atual do servidor
+        System.out.println(diretoria_atual);
+        printFiles(diretoria_atual,out);
 
+    }
+
+
+    public static void printFiles(String path,DataOutputStream out) throws IOException {
+        Scanner sc = new Scanner(System.in);
+        File dir = new File(path);
+        File[] files = dir.listFiles();
+        int ctl;
+        while (true) {
+            if (files != null && files.length > 0) {
+                for (int i = 0; i < files.length; i++) {
+                    if (files[i].isDirectory()) {
+                        System.out.println(i + "." + "Directory: " + files[i].getName());
+                        //recursividade para sacar ficheiros dentro de pastas
+                        //printFiles(files[i].getAbsolutePath());
+                    } else {
+                        System.out.println(i +  ". " + files[i].getName());
+                    }
+                }
+            }
+            System.out.println("Introduce a directory number OR ENTER.\n-1.Return to previous directory.\n-2.Exit");
+            ctl = sc.nextInt();
+            System.out.println(path);
+            if (ctl == -2) {
+                out.writeUTF(path);
+                break;
+            }
+
+            else if(ctl == -1){
+                System.out.println("aquuuuuuu");
+                String retPath = "";
+                String[] toks = path.split(" \\ ");
+
+                for(int j = 0; j < toks.length - 1; j++){
+                    //System.out.println(toks[j]);
+                    retPath += toks[j] + "\\";
+                }
+
+                System.out.println(retPath);
+                path = retPath;
+                dir = new File(path);
+                files = dir.listFiles();
+            }
+
+            else{
+                path += files[ctl].getName() + "\\";
+                System.out.println(path);
+                dir = new File(path);
+                files = dir.listFiles();
+                //System.out.println(path);
+            }
+        }
     }
 
 

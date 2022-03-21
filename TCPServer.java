@@ -49,7 +49,7 @@ public class TCPServer {
             while ((line = br.readLine()) != null) {
                 campos = line.split(",");
                 Client aux = new Client(campos[0], campos[1], campos[2], Integer.parseInt(campos[3]), campos[4],
-                Integer.parseInt(campos[5]), campos[6]);
+                Integer.parseInt(campos[5]), campos[6],campos[7] + "\\" + campos[0]);
                 this.listaClientes.add(aux);
             }
             br.close();
@@ -171,12 +171,15 @@ public class TCPServer {
     }
 
     private synchronized void lista_files(Client c, DataInputStream in, DataOutputStream out) {
-        try {
+        try {//sair daqui qdo der exit
             String lista=in.readUTF();
             System.out.println(lista);
             if (lista.equals("listar")){
-                System.out.println("vou listsar");
+                String diretoria = c.getDiretoria_atual();
+                out.writeUTF(diretoria);
             }
+            String diretoria_atualizada=in.readUTF();
+            c.setDiretoria_atual(diretoria_atualizada);
         } catch (IOException e) {
             e.printStackTrace();
         }
