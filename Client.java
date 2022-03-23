@@ -2,9 +2,9 @@ public class Client {
     private String nome;
     private String password;
     private String departamento;
-    private int nrTelemovel;
+    private String nrTelemovel;
     private String morada;
-    private int nrCC;
+    private String nrCC;
     private String valCC;
     private String diretoria_atual;
 
@@ -17,8 +17,8 @@ public class Client {
         setPassword(password);
     }
 
-    public Client(String username, String password, String departamento, int nrTele, String morada,
-                  int nrcc, String dataValCC,String diretoria_atual) {
+    public Client(String username, String password, String departamento, String nrTele, String morada,
+                  String nrcc, String dataValCC,String diretoria_atual) {
         setNome(username);
         setPassword(password);
         setDepartamento(departamento);
@@ -53,11 +53,11 @@ public class Client {
         this.departamento = departamento;
     }
 
-    public int getNrTelemovel() {
+    public String getNrTelemovel() {
         return nrTelemovel;
     }
 
-    public void setNrTelemovel(int nrTelemovel) {
+    public void setNrTelemovel(String nrTelemovel) {
         this.nrTelemovel = nrTelemovel;
     }
 
@@ -69,11 +69,11 @@ public class Client {
         this.morada = morada;
     }
 
-    public int getNrCC() {
+    public String getNrCC() {
         return nrCC;
     }
 
-    public void setNrCC(int nrCC) {
+    public void setNrCC(String nrCC) {
         this.nrCC = nrCC;
     }
 

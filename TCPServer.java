@@ -1,8 +1,12 @@
 
 import java.net.*;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-;
+import java.io.RandomAccessFile;
+import java.util.Arrays;
+import java.util.Scanner;
+import java.util.stream.Stream;
 
 
 public class TCPServer {
@@ -47,16 +51,36 @@ public class TCPServer {
             String line;
             String[] campos;
             while ((line = br.readLine()) != null) {
+                line = line.replace("[","");
+                line = line.replace("]","");
+                line = line.replace(" ","");
                 campos = line.split(",");
-                Client aux = new Client(campos[0], campos[1], campos[2], Integer.parseInt(campos[3]), campos[4],
-                Integer.parseInt(campos[5]), campos[6],campos[7] + "\\" + campos[0]);
-                this.listaClientes.add(aux);
+                if (check_directory(campos[7],campos[0])){
+                    Client aux = new Client(campos[0], campos[1], campos[2], campos[3], campos[4],
+                            campos[5], campos[6], campos[7] + "\\" + campos[0]);
+                    this.listaClientes.add(aux);
+                }
+                else{
+                    Client aux = new Client(campos[0], campos[1], campos[2], campos[3], campos[4],
+                            campos[5], campos[6], campos[7] );
+                    this.listaClientes.add(aux);
+                }
             }
             br.close();
         } catch (IOException e) {
             System.out.println("Erro! Ficheiro nao foi encontrado");
             e.printStackTrace();
         }
+    }
+
+    private boolean check_directory( String diretoria,String user){
+        String [] divide;
+        divide = diretoria.split("\\\\");
+        System.out.println(divide.length);
+        if ( divide.length < 5 && divide[4].equals(user)){
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -67,8 +91,12 @@ public class TCPServer {
      */
     public Client login(String username, String password){
         for(Client c:this.listaClientes){
+            System.out.println(c.getNome());
             if(c.getNome().equals(username)){
+                System.out.println(c.getPassword());
+
                 if(c.getPassword().equals(password)){
+                    System.out.println("returnei");
                     return c;
                 }
             }
@@ -172,6 +200,7 @@ public class TCPServer {
 
     private synchronized void lista_files(Client c, DataInputStream in, DataOutputStream out) {
         try {//sair daqui qdo der exit
+            File newFile = new File("config_clients.txt");
             String lista=in.readUTF();
             System.out.println(lista);
             if (lista.equals("listar")){
@@ -180,9 +209,45 @@ public class TCPServer {
             }
             String diretoria_atualizada=in.readUTF();
             c.setDiretoria_atual(diretoria_atualizada);
+            atualiza_file(diretoria_atualizada,c);
+
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+    }
+
+    private  void atualiza_file(String atualizacao,Client c) throws IOException {
+        StringBuilder nova_linha = new StringBuilder("");
+
+        try {
+            File newFile = new File("config_clients.txt");
+
+            Scanner raf = new Scanner(newFile);
+            while (raf.hasNextLine()) {
+                String linha = raf.nextLine();
+                String[] split_linha = linha.split(",");
+                if (split_linha[0].equals(c.getNome())) {
+                    split_linha[7] = atualizacao;//so atualiza diretoria do user
+                    nova_linha.append(Arrays.toString(split_linha)+"\n");
+                }
+                else{
+                    nova_linha.append(Arrays.toString(split_linha).replace("[","")+"\n");
+                }
+            }
+            raf.close();
+        }catch (IOException e) {
+            System.out.println("Erro! Ficheiro nao foi encontrado");
+            e.printStackTrace();
+        }
+        System.out.println("linha criada"+nova_linha);
+
+
+        PrintStream escreveFile = new PrintStream( new FileOutputStream("config_clients.txt"));
+        escreveFile.print(nova_linha);
+        escreveFile.close();
+
+
 
     }
 

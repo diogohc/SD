@@ -110,6 +110,10 @@ public class TCPClient extends Client{
         out.writeUTF("listar");
         String diretoria_atual= in.readUTF();//diretoria atual do servidor
         System.out.println(diretoria_atual);
+        diretoria_atual = diretoria_atual.replace(" ","");
+        System.out.println(diretoria_atual.length());
+        String ola = "C:\\Users\\joaog\\OneDrive\\Documentos\\diretorias\\user1";
+        System.out.println(ola.length());
         printFiles(diretoria_atual,out);
 
     }
@@ -136,28 +140,39 @@ public class TCPClient extends Client{
             ctl = sc.nextInt();
             System.out.println(path);
             if (ctl == -2) {
+
                 out.writeUTF(path);
                 break;
             }
 
             else if(ctl == -1){
-                System.out.println("aquuuuuuu");
+                path = path.replace("\\"," ");
+                System.out.println(path);
                 String retPath = "";
-                String[] toks = path.split(" \\ ");
+
+                String[] toks;
+                toks = path.split(" ");
 
                 for(int j = 0; j < toks.length - 1; j++){
-                    //System.out.println(toks[j]);
-                    retPath += toks[j] + "\\";
+                    System.out.println(toks[j]);
+
+                    if (j==toks.length-2){
+                        retPath += toks[j];
+                    }
+                    else{
+                        retPath += toks[j] + "\\";
+                    }
                 }
 
-                System.out.println(retPath);
+                System.out.println("path retificado" + retPath);
                 path = retPath;
                 dir = new File(path);
                 files = dir.listFiles();
+                System.out.println(path);
             }
 
             else{
-                path += files[ctl].getName() + "\\";
+                path += "\\" + files[ctl].getName() + "\\";
                 System.out.println(path);
                 dir = new File(path);
                 files = dir.listFiles();
