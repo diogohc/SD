@@ -137,6 +137,7 @@ public class TCPServer {
                     if(c!=null){
                         out.writeBoolean(true);
                         menuServidor(c, in, out);
+                        escreve_ficheiro();
                     }
                     else{
                         out.writeBoolean(false);
@@ -209,7 +210,7 @@ public class TCPServer {
             }
             String diretoria_atualizada=in.readUTF();
             c.setDiretoria_atual(diretoria_atualizada);
-            atualiza_file(diretoria_atualizada,c);
+            //atualiza_file(diretoria_atualizada,c);
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -249,6 +250,21 @@ public class TCPServer {
 
 
 
+    }
+
+    private void escreve_ficheiro(){
+        File fich = new File("config_clients.txt");
+        try{
+            FileWriter fw = new FileWriter(fich);
+            BufferedWriter bw = new BufferedWriter(fw);
+
+            for(Client c:listaClientes){
+                bw.append(c.clienteFicheiro());
+            }
+            bw.close();
+        }catch(IOException ex){
+            System.out.println("Erro a escrever no ficheiro");
+        }
     }
 
 

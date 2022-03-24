@@ -92,4 +92,11 @@ public class Client {
     public void setDiretoria_atual(String diretoria_atual) {
         this.diretoria_atual = diretoria_atual;
     }
+
+    public String clienteFicheiro(){
+        String s;
+        s=this.getNome()+","+this.getPassword()+","+this.getDepartamento()+","+this.getNrTelemovel()+","+
+                this.getMorada()+","+this.getNrCC()+","+this.getValCC()+","+this.getDiretoria_atual()+"\n";
+        return s;
+    }
 }
