@@ -8,8 +8,7 @@ import java.io.*;
 public class TCPClient extends Client{
     private static int serversocket;
 
-    //private static String pathCliente = "C:\\Users\\joaog\\OneDrive\\Documentos\\diretoriaspc";
-    private static String pathCliente = "C:\\Users\\dimih\\Documentos\\diretoriaspc";
+    private static String pathCliente = "C:\\Users\\joaog\\OneDrive\\Documentos\\diretoriaspc";
 
 
     public static void main(String[] args) {
