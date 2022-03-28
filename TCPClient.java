@@ -6,17 +6,19 @@ import java.util.Scanner;
 import java.io.*;
 
 public class TCPClient extends Client{
-    private static int serversocket = 6000;
+    private static int serversocket;
 
-    private static String pathCliente = "C:\\Users\\joaog\\OneDrive\\Documentos\\diretoriaspc";
+    //private static String pathCliente = "C:\\Users\\joaog\\OneDrive\\Documentos\\diretoriaspc";
+    private static String pathCliente = "C:\\Users\\dimih\\Documentos\\diretoriaspc";
 
 
     public static void main(String[] args) {
         // args[0] <- hostname of destination
-        if (args.length == 0) {
-            System.out.println("java TCPClient hostname");
+        if (args.length != 2) {
+            System.out.println("java TCPClient hostname port");
             System.exit(0);
         }
+        serversocket = Integer.parseInt(args[1]);
 
         // 1o passo - criar socket
         try (Socket s = new Socket(args[0], serversocket)) {
@@ -109,9 +111,9 @@ public class TCPClient extends Client{
 
     private static void configura_fail(DataInputStream in,DataOutputStream out) throws IOException{
         Scanner sc = new Scanner(System.in);
-        System.out.print("ping desejado:");
+        System.out.print("Novo endereco:");
         String novo_ping = sc.nextLine();
-        System.out.print("porto desejado:");
+        System.out.print("Novo porto:");
         String novo_porto = sc.nextLine();
         System.out.println(novo_ping);
         System.out.println((novo_porto));

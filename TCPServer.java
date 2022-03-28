@@ -10,36 +10,68 @@ import java.util.stream.Stream;
 
 
 public class TCPServer {
-    private static int serverPort = 6000;
-    private static int serverPing = 50;
+    private int serverPort;
+    private String address;
+    private static final int timeout = 2000;
+    private boolean primario;
+    private int bufsize=100;
+    private int max_falhas=5;
     private ArrayList<Client> listaClientes = new ArrayList<>();
 
-    public TCPServer() {
+    public TCPServer(String endereco, int porto) {
+        this.address = endereco;
+        this.serverPort=porto;
     }
 
-    private void iniciar(int numero) throws FileNotFoundException {
-        //ler ficheiro de configuracao de clientes e adiciona na arraylist
-        le_ficheiro();
-
-        try (ServerSocket listenSocket = new ServerSocket(serverPort)) {
-            System.out.println("A escuta no porto 6000");
+    private void ligacaoComCliente(int porto){
+        try (ServerSocket listenSocket = new ServerSocket(porto)) {
+            System.out.println("A escuta no porto "+porto);
             System.out.println("LISTEN SOCKET=" + listenSocket);
             while (true) {
                 Socket clientSocket = listenSocket.accept(); // BLOQUEANTE
                 System.out.println("Novo cliente conectado");
-                new Connection(clientSocket, numero);
-                numero++;
+                new Connection(clientSocket);
             }
         } catch (IOException e) {
             System.out.println("Listen:" + e.getMessage());
         }
     }
 
+    private void iniciar(int numero) throws FileNotFoundException {
+        //ler ficheiro de configuracao de clientes e adiciona na arraylist
+        le_ficheiro();
+
+        if(numero==1){
+            FailOverPrim failPrim = new FailOverPrim();
+            failPrim.start();
+            ligacaoComCliente(serverPort);
+
+        }
+
+        if(numero==2){
+            FailOverSec server2 = new FailOverSec();
+            server2.run();
+            //espera que a thread termine
+            try{
+                server2.join();
+            }catch(InterruptedException e){
+                System.out.println("Erro! Thread interrompida");
+            }
+            this.primario=true;
+            FailOverPrim subServer = new FailOverPrim();
+            subServer.start();
+            ligacaoComCliente(serverPort);
+        }
+
+    }
+
 
     public static void main(String[] args) throws FileNotFoundException {
         int numero = 0;
-        TCPServer server = new TCPServer();
-        server.iniciar(numero);
+        //java TCPServer <1/2> <endereco> <porto>
+        TCPServer server = new TCPServer(args[1], Integer.parseInt(args[2]));
+        server.iniciar(Integer.parseInt(args[0]));
+
 
     }
 
@@ -103,6 +135,72 @@ public class TCPServer {
         return null;
     }
 
+    //failover do lado do server primario
+    class FailOverPrim extends Thread{
+        public FailOverPrim(){
+
+        }
+        public void run() {
+            try (DatagramSocket aSocket = new DatagramSocket(serverPort)) {
+                while (true) {
+                    byte[] buffer = new byte[bufsize];
+                    DatagramPacket dp = new DatagramPacket(buffer, buffer.length);
+                    aSocket.receive(dp);
+                    DatagramPacket reply = new DatagramPacket(dp.getData(), dp.getLength(), dp.getAddress(), dp.getPort());
+                    aSocket.send(reply);
+                    Thread.sleep(timeout);
+                }
+            } catch (SocketException e) {
+                System.out.println("Socket: " + e.getMessage());
+            } catch (IOException e){
+                System.out.println("IOException::: " + e.getMessage());
+            } catch(InterruptedException e){
+                System.out.println("InterruptedException:" + e.getMessage());
+            }
+        }
+    }
+
+    //failover do lado do server secundario
+    class FailOverSec extends Thread{
+        public FailOverSec(){
+
+        }
+
+        public void run(){
+            try(DatagramSocket aSocket = new DatagramSocket()){
+                int nr_falhas=0;
+                aSocket.setSoTimeout(500);
+                while(nr_falhas<max_falhas){
+                    try{
+                        String texto="ping";
+                        byte[] m = texto.getBytes();
+
+                        InetAddress aPrim = InetAddress.getByName("localhost");
+                        DatagramPacket dp = new DatagramPacket(m, m.length, aPrim, serverPort);
+                        aSocket.send(dp);
+
+                        byte[] buffer = new byte[bufsize];
+                        DatagramPacket resposta = new DatagramPacket(buffer, buffer.length);
+                        aSocket.receive(resposta);
+                        System.out.println("Ping...");
+                    }catch(SocketException e){
+                        nr_falhas++;
+                        System.out.println("Pings falhados: "+nr_falhas);
+                    }catch(IOException e){
+                        nr_falhas++;
+                        System.out.println("Pings falhados: "+nr_falhas);
+                    }
+                    Thread.sleep(timeout);
+                }
+            }catch(IOException e){
+                System.out.println("IOException:"+e.getMessage());
+            }catch(InterruptedException e){
+                System.out.println("InterruptedException:"+e.getMessage());
+            }
+        }
+
+
+    }
 
     //= Thread para tratar de cada canal de comunicação com um cliente
     class Connection extends Thread {
@@ -112,8 +210,7 @@ public class TCPServer {
         ArrayList<Client> listaClientes;
         int thread_number;
 
-        public Connection(Socket aClientSocket, int numero) {
-            thread_number = numero;
+        public Connection(Socket aClientSocket) {
             try {
                 clientSocket = aClientSocket;
                 in = new DataInputStream(clientSocket.getInputStream());
@@ -194,14 +291,15 @@ public class TCPServer {
 
     private synchronized void altera_config(Client c, DataInputStream in, DataOutputStream out) {
         try {
-            String novo_ping=in.readUTF();
+            String novo_endereco=in.readUTF();
             String novo_porto = in.readUTF();
-            serverPort = Integer.parseInt(novo_porto);
-            serverPing = Integer.parseInt(novo_ping);
+            this.serverPort = Integer.parseInt(novo_porto);
+            this.address = novo_endereco;
+
+
         } catch (IOException e) {
             e.printStackTrace();
         }
-
     }
 
     private synchronized void lista_files(Client c, DataInputStream in, DataOutputStream out) {
