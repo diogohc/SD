@@ -77,7 +77,7 @@ public class TCPServer {
         String [] divide;
         divide = diretoria.split("\\\\");
         System.out.println(divide.length);
-        if ( divide.length < 5 && divide[4].equals(user)){
+        if ( divide.length < 7 || divide[6].equals(user)){
             return false;
         }
         return true;
@@ -96,7 +96,6 @@ public class TCPServer {
                 System.out.println(c.getPassword());
 
                 if(c.getPassword().equals(password)){
-                    System.out.println("returnei");
                     return c;
                 }
             }
@@ -137,7 +136,6 @@ public class TCPServer {
                     if(c!=null){
                         out.writeBoolean(true);
                         menuServidor(c, in, out);
-                        escreve_ficheiro();
                     }
                     else{
                         out.writeBoolean(false);
@@ -170,6 +168,13 @@ public class TCPServer {
             if (opcao ==3){
                 System.out.println("Listar ficheiros");
                 lista_files(c,in,out);
+                System.out.println("bazei");
+                opcao = 0;
+            }
+
+            if (opcao ==4){
+                System.out.println("Alterar diretoria");
+                altera_diretoria(c,in,out);
                 opcao = 0;
             }
         } while (opcao != 0);
@@ -203,14 +208,12 @@ public class TCPServer {
         try {//sair daqui qdo der exit
             File newFile = new File("config_clients.txt");
             String lista=in.readUTF();
-            System.out.println(lista);
             if (lista.equals("listar")){
                 String diretoria = c.getDiretoria_atual();
-                out.writeUTF(diretoria);
+                printFiles(diretoria,out);
+                //out.writeUTF(diretoria);
             }
-            String diretoria_atualizada=in.readUTF();
-            c.setDiretoria_atual(diretoria_atualizada);
-            //atualiza_file(diretoria_atualizada,c);
+
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -218,7 +221,39 @@ public class TCPServer {
 
     }
 
-    private  void atualiza_file(String atualizacao,Client c) throws IOException {
+
+    private synchronized void altera_diretoria(Client c, DataInputStream in, DataOutputStream out) throws IOException {
+        String atual = null;
+        String novaDiretoria = null;
+        boolean primeira = true;
+        if (in.readUTF().equals("altera")){
+            atual = c.getDiretoria_atual();
+            out.writeUTF(atual);
+        }
+        while (in.readUTF().equals("siga")) {
+            System.out.println("entreei no sever");
+            if (primeira == true){
+                novaDiretoria= atual;
+                primeira = false;
+            }
+            else {
+                novaDiretoria = in.readUTF();
+            }
+            printFiles(novaDiretoria, out);
+
+            c.setDiretoria_atual(novaDiretoria);
+            atualiza_file(novaDiretoria,c);
+            System.out.println("+++++++++"+c.getDiretoria_atual());
+        }
+        atualiza_file(novaDiretoria,c);
+        System.out.println("bazei");
+
+    }
+
+
+
+
+        private  void atualiza_file(String atualizacao,Client c) throws IOException {
         StringBuilder nova_linha = new StringBuilder("");
 
         try {
@@ -241,7 +276,6 @@ public class TCPServer {
             System.out.println("Erro! Ficheiro nao foi encontrado");
             e.printStackTrace();
         }
-        System.out.println("linha criada"+nova_linha);
 
 
         PrintStream escreveFile = new PrintStream( new FileOutputStream("config_clients.txt"));
@@ -252,19 +286,35 @@ public class TCPServer {
 
     }
 
-    private void escreve_ficheiro(){
-        File fich = new File("config_clients.txt");
-        try{
-            FileWriter fw = new FileWriter(fich);
-            BufferedWriter bw = new BufferedWriter(fw);
 
-            for(Client c:listaClientes){
-                bw.append(c.clienteFicheiro());
+
+    public static void printFiles(String path,DataOutputStream out) throws IOException {
+        System.out.println(path);
+        Scanner sc = new Scanner(System.in);
+        File dir = new File(path);
+        File[] files = dir.listFiles();
+        System.out.println(files.length);
+        if (files.length>0)
+            out.writeUTF(String.valueOf(files.length));
+        while (true) {
+            if (files != null && files.length > 0) {
+                for (int i = 0; i < files.length; i++) {
+                    System.out.println(i);
+                    if (files[i].isDirectory()) {
+                        out.writeUTF(String.valueOf(i) + "." + "Directory: " + files[i].getName());
+                        //System.out.println(i + "." + "Directory: " + files[i].getName());
+                        //recursividade para sacar ficheiros dentro de pastas
+                        //printFiles(files[i].getAbsolutePath());
+                    } else {
+                        out.writeUTF(String.valueOf(i) +  ". " + files[i].getName());
+                        //System.out.println(i +  ". " + files[i].getName());
+                    }
+                }
+                break;
             }
-            bw.close();
-        }catch(IOException ex){
-            System.out.println("Erro a escrever no ficheiro");
         }
+
+
     }
 
 

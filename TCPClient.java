@@ -1,5 +1,6 @@
 
 import java.net.*;
+import java.sql.SQLSyntaxErrorException;
 import java.util.Date;
 import java.util.Scanner;
 import java.io.*;
@@ -7,7 +8,8 @@ import java.io.*;
 public class TCPClient extends Client{
     private static int serversocket = 6000;
 
-    String path = "C:\\Users\\joaog\\OneDrive\\Ambiente de Trabalho\\Cadeiras de licenciatura\\SD\\diretorias";
+    private static String pathCliente = "C:\\Users\\joaog\\OneDrive\\Documentos\\diretoriaspc";
+
 
     public static void main(String[] args) {
         // args[0] <- hostname of destination
@@ -66,6 +68,9 @@ public class TCPClient extends Client{
             System.out.println("===Menu===");
             System.out.println("1 - Alterar password");
             System.out.println("2 - Configurar servidor");
+            System.out.println("3 - Listar ficheiros servidor");
+            System.out.println("4 - Atualizar diretoria servidor");
+            System.out.println("5 - Listar ficheiros ");
             System.out.println("0 - Sair");
             System.out.print("Opcao:");
             opcao = sc.nextInt();
@@ -79,9 +84,17 @@ public class TCPClient extends Client{
                 opcao=0;
             }
             if (opcao==3){
-                listar_files(in,out);
+                listar_files_servidor(in,out);
                 opcao=0;
             }
+            if (opcao==4){
+                atualizar_diretoria_servidor(in,out);
+                opcao=0;
+            }
+            if (opcao==5){
+                printFiles(pathCliente,out);
+            }
+
 
         } while (opcao != 0);
     }
@@ -106,17 +119,87 @@ public class TCPClient extends Client{
         out.writeUTF(novo_porto);
     }
 
-    private static void listar_files(DataInputStream in,DataOutputStream out) throws IOException {
+    private static void listar_files_servidor(DataInputStream in,DataOutputStream out) throws IOException {
         out.writeUTF("listar");
-        String diretoria_atual= in.readUTF();//diretoria atual do servidor
+        int size = Integer.parseInt(in.readUTF());
+        for (int i =0 ; i < size ;i++) {
+            System.out.println(in.readUTF());
+        }
+
+
+       /*String diretoria_atual= in.readUTF();//diretoria atual do servidor
         System.out.println(diretoria_atual);
         diretoria_atual = diretoria_atual.replace(" ","");
-        System.out.println(diretoria_atual.length());
-        String ola = "C:\\Users\\joaog\\OneDrive\\Documentos\\diretorias\\user1";
-        System.out.println(ola.length());
         printFiles(diretoria_atual,out);
-
+*/
     }
+
+    private static void atualizar_diretoria_servidor(DataInputStream in,DataOutputStream out) throws IOException {
+        out.writeUTF("altera");
+        Scanner sc = new Scanner(System.in);
+        String path = in.readUTF();
+        File dir = new File(path);
+        File[] files = dir.listFiles();
+        int ctl;
+        out.writeUTF("siga");
+        while (true) {
+            int size = Integer.parseInt(in.readUTF());
+            for (int i = 0 ; i<size;i++) {
+                System.out.println(in.readUTF());
+            }
+            System.out.println("Introduce a directory number OR ENTER.\n-1.Return to previous directory.\n-2.Exit");
+            ctl = sc.nextInt();
+            System.out.println(path);
+            if (ctl == -2) {
+
+                out.writeUTF("sair");
+                break;
+            }
+
+            else if(ctl == -1){
+                path = path.replace("\\"," ");
+                System.out.println(path);
+                String retPath = "";
+
+                String[] toks;
+                toks = path.split(" ");
+
+                for(int j = 0; j < toks.length - 1; j++){
+                    //System.out.println(toks[j]);
+
+                    if (j==toks.length-2){
+                        retPath += toks[j];
+                    }
+                    else{
+                        retPath += toks[j] + "\\";
+                    }
+                }
+
+                System.out.println("path retificado" + retPath);
+                path = retPath;
+                dir = new File(path);
+                files = dir.listFiles();
+                out.writeUTF("siga");
+                out.writeUTF(path);
+                System.out.println("enviei");
+
+            }
+
+            else{
+                path += "\\" + files[ctl].getName() ;
+                System.out.println("helllllo"+path);
+                dir = new File(path);
+                files = dir.listFiles();
+                out.writeUTF("siga");
+                out.writeUTF(path);
+                //System.out.println(path);
+            }
+        }
+    }
+
+
+
+
 
 
     public static void printFiles(String path,DataOutputStream out) throws IOException {
@@ -140,21 +223,19 @@ public class TCPClient extends Client{
             ctl = sc.nextInt();
             System.out.println(path);
             if (ctl == -2) {
-
-                out.writeUTF(path);
                 break;
             }
 
             else if(ctl == -1){
                 path = path.replace("\\"," ");
-                System.out.println(path);
+                //System.out.println(path);
                 String retPath = "";
 
                 String[] toks;
                 toks = path.split(" ");
 
                 for(int j = 0; j < toks.length - 1; j++){
-                    System.out.println(toks[j]);
+                    //System.out.println(toks[j]);
 
                     if (j==toks.length-2){
                         retPath += toks[j];
@@ -164,27 +245,25 @@ public class TCPClient extends Client{
                     }
                 }
 
-                System.out.println("path retificado" + retPath);
+                //System.out.println("path retificado" + retPath);
                 path = retPath;
                 dir = new File(path);
                 files = dir.listFiles();
-                System.out.println(path);
             }
 
             else{
-                path += "\\" + files[ctl].getName() + "\\";
-                System.out.println(path);
+                path += "\\" + files[ctl].getName() ;
+                //System.out.println(path);
                 dir = new File(path);
                 files = dir.listFiles();
                 //System.out.println(path);
             }
         }
-    }
-
-
-
-
-
-
-
+        }
 }
+
+
+
+
+
+
