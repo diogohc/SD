@@ -83,9 +83,8 @@ public class TCPServer {
             String line;
             String[] campos;
             while ((line = br.readLine()) != null) {
-                line = line.replace("[","");
-                line = line.replace("]","");
                 line = line.replace(" ","");
+                line = line.replace("]","");
                 campos = line.split(",");
                 if (check_directory(campos[7],campos[0])){
                     Client aux = new Client(campos[0], campos[1], campos[2], campos[3], campos[4],
@@ -306,7 +305,6 @@ public class TCPServer {
 
     private synchronized void lista_files(Client c, DataInputStream in, DataOutputStream out) {
         try {//sair daqui qdo der exit
-            File newFile = new File("config_clients.txt");
             String lista=in.readUTF();
             if (lista.equals("listar")){
                 String diretoria = c.getDiretoria_atual();
