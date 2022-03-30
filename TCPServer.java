@@ -9,11 +9,12 @@ import java.util.Scanner;
 public class TCPServer {
     ServerSocket listenSocket;
     private int serverPort;
-    private String address;
+    private static String address;
     private static final int timeout = 2000;
     private boolean primario;
     private int bufsize=100;
     private int max_falhas=5;
+    public final static int FILE_SIZE = 6022386;
     private ArrayList<Client> listaClientes = new ArrayList<>();
 
     public TCPServer(String endereco, int porto) {
@@ -274,6 +275,10 @@ public class TCPServer {
                 altera_diretoria(c,in,out);
                 opcao = 0;
             }
+
+            if (opcao == 5){
+                download(in,c);
+            }
         } while (opcao != 0);
     }
 
@@ -485,6 +490,48 @@ public class TCPServer {
         }
 
 
+    }
+
+
+
+    private static synchronized void download(DataInputStream in,Client c) throws IOException {
+        String file_criar= in.readUTF();
+        int bytesRead;
+        int current = 0;
+        FileOutputStream fos = null;
+        BufferedOutputStream bos = null;
+        Socket sock = null;
+        try {
+            sock = new Socket(address, 10000);
+            System.out.println("Connecting...");
+            // receive file
+            byte [] mybytearray  = new byte [FILE_SIZE];
+            InputStream is = sock.getInputStream();
+            fos = new FileOutputStream(c.getDiretoria_atual()+ "\\" + file_criar);
+            bos = new BufferedOutputStream(fos);
+            bytesRead = is.read(mybytearray,0,mybytearray.length);
+            current = bytesRead;
+
+            do {
+                bytesRead =
+                        is.read(mybytearray, current, (mybytearray.length-current));
+                if(bytesRead >= 0) current += bytesRead;
+            } while(bytesRead > -1);
+
+            bos.write(mybytearray, 0 , current);
+            bos.flush();
+            System.out.println("File " + c.getDiretoria_atual()+ "\\" + file_criar
+                    + " downloaded (" + current + " bytes read)");
+            //de user para servidor
+            //replicar
+            //escrevo na diretoria
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (fos != null) fos.close();
+            if (bos != null) bos.close();
+            if (sock!=null) sock.close();
+        }
     }
 
     

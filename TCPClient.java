@@ -227,19 +227,9 @@ public class TCPClient extends Client{
         out.writeUTF("siga");
         while (true) {
             int size = Integer.parseInt(in.readUTF());
-            for (int i = 0; i < size; i++) {
+            for (int i = 0 ; i<size;i++) {
                 System.out.println(in.readUTF());
             }
-            /*System.out.println("deseja fazer upload de algum dos ficheiros?selecione:/-1 exit:");
-            ctl = sc.nextInt();
-            out.writeUTF(String.valueOf(ctl));
-            if (ctl!=-1) {
-                String file_criar;
-                file_criar = in.readUTF();
-                download(file_criar);
-            }*/
-
-
             System.out.println("Introduce a directory number OR ENTER.\n-1.Return to previous directory.\n-2.Exit");
             ctl = sc.nextInt();
             System.out.println(path);
@@ -247,20 +237,23 @@ public class TCPClient extends Client{
 
                 out.writeUTF("sair");
                 break;
-            } else if (ctl == -1) {
-                path = path.replace("\\", " ");
+            }
+
+            else if(ctl == -1){
+                path = path.replace("\\"," ");
                 System.out.println(path);
                 String retPath = "";
 
                 String[] toks;
                 toks = path.split(" ");
 
-                for (int j = 0; j < toks.length - 1; j++) {
+                for(int j = 0; j < toks.length - 1; j++){
                     //System.out.println(toks[j]);
 
-                    if (j == toks.length - 2) {
+                    if (j==toks.length-2){
                         retPath += toks[j];
-                    } else {
+                    }
+                    else{
                         retPath += toks[j] + "\\";
                     }
                 }
@@ -273,9 +266,12 @@ public class TCPClient extends Client{
                 out.writeUTF(path);
                 System.out.println("enviei");
 
-            } else {
-                path += "\\" + files[ctl].getName();
-                System.out.println("helllllo" + path);
+            }
+
+            else{
+                assert files != null;
+                path += "\\" + files[ctl].getName() ;
+                System.out.println("helllllo"+path);
                 dir = new File(path);
                 files = dir.listFiles();
                 out.writeUTF("siga");
@@ -283,8 +279,7 @@ public class TCPClient extends Client{
                 //System.out.println(path);
             }
         }
-
-    }
+        }
 
 
 
@@ -305,6 +300,12 @@ public class TCPClient extends Client{
                         //printFiles(files[i].getAbsolutePath());
                     } else {
                         System.out.println(i +  ". " + files[i].getName());
+                        System.out.println("deseja fazer upload do ficheiro?selecione:/-1 exit:");
+                        ctl = sc.nextInt();
+                        if (ctl!=-1){
+                            out.writeUTF(files[i].getName());
+                            upload(path + "\\" +files[i].getName());
+                        }
                     }
                 }
             }
@@ -349,7 +350,44 @@ public class TCPClient extends Client{
                 //System.out.println(path);
             }
         }
+    }
+
+
+    private static synchronized void upload(String path) throws IOException {
+        FileInputStream fis = null;
+        BufferedInputStream bis = null;
+        OutputStream os = null;
+        ServerSocket servsock = null;
+        Socket sock = null;
+        try {
+            while (true) {
+                System.out.println("Waiting...");
+                try ( ServerSocket s = new ServerSocket(10000);){
+                    sock = s.accept();
+                    System.out.println("Accepted connection : " + sock);
+                    // send file
+                    File myFile = new File (path);
+                    byte [] mybytearray  = new byte [(int)myFile.length()];
+                    fis = new FileInputStream(myFile);
+                    bis = new BufferedInputStream(fis);
+                    bis.read(mybytearray,0,mybytearray.length);
+                    os = sock.getOutputStream();
+                    System.out.println("Sending " + path + "(" + mybytearray.length + " bytes)");
+                    os.write(mybytearray,0,mybytearray.length);
+                    os.flush();
+                    System.out.println("Done.");
+                }
+                finally {
+                    if (bis != null) bis.close();
+                    if (os != null) os.close();
+                    if (sock!=null) sock.close();
+                }
+                break;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+    }
 }
 
 
