@@ -1,15 +1,13 @@
 
 import java.net.*;
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.io.RandomAccessFile;
 import java.util.Arrays;
 import java.util.Scanner;
-import java.util.stream.Stream;
 
 
 public class TCPServer {
+    ServerSocket listenSocket;
     private int serverPort;
     private String address;
     private static final int timeout = 2000;
@@ -24,7 +22,8 @@ public class TCPServer {
     }
 
     private void ligacaoComCliente(int porto){
-        try (ServerSocket listenSocket = new ServerSocket(porto)) {
+        try  {
+            listenSocket = new ServerSocket(porto);
             System.out.println("A escuta no porto "+porto);
             System.out.println("LISTEN SOCKET=" + listenSocket);
             while (true) {
@@ -310,13 +309,86 @@ public class TCPServer {
                 String diretoria = c.getDiretoria_atual();
                 printFiles(diretoria,out);
                 //out.writeUTF(diretoria);
+                int valor = Integer.valueOf(in.readUTF());
+                if (valor!=-1){
+                    //selecionar o ficheiro
+                    File dir = new File(diretoria);
+                    File[] files = dir.listFiles();
+                    System.out.println(files.length);
+                    while (true) {
+                        if (files != null && files.length > 0) {
+                            for (int i = 0; i < files.length; i++) {
+                                System.out.println(i);
+                                if (files[i].isDirectory()) {
+                                    //out.writeUTF(String.valueOf(i) + "." + "Directory: " + files[i].getName());
+                                    if (i==valor){
+                                        System.out.println(i + "." + "Directory: " + files[i].getName()+"nao pode fazer download de diretorias");
+                                        break;
+                                    }
+
+                                    //recursividade para sacar ficheiros dentro de pastas
+                                    //printFiles(files[i].getAbsolutePath());
+                                } else {
+                                    if (i==valor){
+                                        out.writeUTF(files[i].getName());
+                                        upload(diretoria +"\\"+files[i].getName());
+                                        break;
+                                    }
+                                    //System.out.println(i +  ". " + files[i].getName());
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+                else{
+                    return;
+                }
             }
-
-
         } catch (IOException e) {
             e.printStackTrace();
         }
 
+    }
+
+    private synchronized void upload(String path) throws IOException {
+        FileInputStream fis = null;
+        BufferedInputStream bis = null;
+        OutputStream os = null;
+        ServerSocket servsock = null;
+        Socket sock = null;
+        try {
+            while (true) {
+                System.out.println("Waiting...");
+                try ( ServerSocket s = new ServerSocket(20000);){
+                    sock = s.accept();
+                    System.out.println("Accepted connection : " + sock);
+                    // send file
+                    File myFile = new File (path);
+                    byte [] mybytearray  = new byte [(int)myFile.length()];
+                    fis = new FileInputStream(myFile);
+                    bis = new BufferedInputStream(fis);
+                    bis.read(mybytearray,0,mybytearray.length);
+                    os = sock.getOutputStream();
+                    System.out.println("Sending " + path + "(" + mybytearray.length + " bytes)");
+                    os.write(mybytearray,0,mybytearray.length);
+                    os.flush();
+                    System.out.println("Done.");
+                }
+                finally {
+                    if (bis != null) bis.close();
+                    if (os != null) os.close();
+                    if (sock!=null) sock.close();
+                }
+                break;
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (servsock != null) servsock.close();
+        }
     }
 
 

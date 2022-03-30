@@ -6,7 +6,10 @@ import java.util.Scanner;
 import java.io.*;
 
 public class TCPClient extends Client{
-    private static int serversocket;
+    private static int serverporto;
+    private static String serverIP;
+    public final static int FILE_SIZE = 6022386;
+
 
     private static String pathCliente = "C:\\Users\\joaog\\OneDrive\\Documentos\\diretoriaspc";
 
@@ -17,10 +20,11 @@ public class TCPClient extends Client{
             System.out.println("java TCPClient hostname port");
             System.exit(0);
         }
-        serversocket = Integer.parseInt(args[1]);
+        serverporto = Integer.parseInt(args[1]);
+        serverIP = args[0];
 
         // 1o passo - criar socket
-        try (Socket s = new Socket(args[0], serversocket)) {
+        try (Socket s = new Socket(args[0], serverporto)) {
             System.out.println("SOCKET=" + s);
             // 2o passo
             DataInputStream in = new DataInputStream(s.getInputStream());
@@ -43,7 +47,11 @@ public class TCPClient extends Client{
                     boolean verifica_login=in.readBoolean();
                     if(verifica_login) {
                         System.out.println("\nLogin efetuado com sucesso\n");
+                        if(check_directory(pathCliente,username))
+                            pathCliente+=("\\" + username);
+                        System.out.println(pathCliente);
                         menu(in, out);
+
                     }
                     else {
                         System.out.println("\nUsername/password errados\n");
@@ -60,6 +68,17 @@ public class TCPClient extends Client{
             System.out.println("IO:" + e.getMessage());
         }
     }
+
+    private static boolean check_directory(String diretoria,String user){
+        String [] divide;
+        divide = diretoria.split("\\\\");
+        System.out.println(divide.length);
+        if (divide.length >6){
+            return false;
+        }
+        return true;
+    }
+
 
     //menu do lado do cliente
     private static void menu(DataInputStream in, DataOutputStream out) throws IOException {
@@ -121,11 +140,29 @@ public class TCPClient extends Client{
     }
 
     private static void listar_files_servidor(DataInputStream in,DataOutputStream out) throws IOException {
+        Scanner sc = new Scanner(System.in);
+        int ctl;
         out.writeUTF("listar");
         int size = Integer.parseInt(in.readUTF());
         for (int i =0 ; i < size ;i++) {
             System.out.println(in.readUTF());
         }
+
+        //download
+        System.out.println("deseja fazer download de algum dos ficheiros?selecione:/-1 exit:");
+        ctl = sc.nextInt();
+        out.writeUTF(String.valueOf(ctl));
+        if (ctl!=-1) {
+            String file_criar;
+            file_criar = in.readUTF();
+            download(file_criar);
+        }
+
+
+
+
+
+
 
 
        /*String diretoria_atual= in.readUTF();//diretoria atual do servidor
@@ -134,6 +171,51 @@ public class TCPClient extends Client{
         printFiles(diretoria_atual,out);
 */
     }
+
+
+    private static synchronized void download(String file_criar) throws IOException {
+        int bytesRead;
+        int current = 0;
+        FileOutputStream fos = null;
+        BufferedOutputStream bos = null;
+        Socket sock = null;
+        try {
+            sock = new Socket(serverIP, 20000);
+            System.out.println("Connecting...");
+            // receive file
+            byte [] mybytearray  = new byte [FILE_SIZE];
+            InputStream is = sock.getInputStream();
+            fos = new FileOutputStream(pathCliente+ "\\" + file_criar);
+            bos = new BufferedOutputStream(fos);
+            bytesRead = is.read(mybytearray,0,mybytearray.length);
+            current = bytesRead;
+
+            do {
+                bytesRead =
+                        is.read(mybytearray, current, (mybytearray.length-current));
+                if(bytesRead >= 0) current += bytesRead;
+            } while(bytesRead > -1);
+
+            bos.write(mybytearray, 0 , current);
+            bos.flush();
+            System.out.println("File " + pathCliente
+                    + " downloaded (" + current + " bytes read)");
+            //de user para servidor
+            //replicar
+            //escrevo na diretoria
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (fos != null) fos.close();
+            if (bos != null) bos.close();
+            if (sock!=null) sock.close();
+        }
+    }
+
+
+
+
+
 
     private static void atualizar_diretoria_servidor(DataInputStream in,DataOutputStream out) throws IOException {
         out.writeUTF("altera");
@@ -145,9 +227,19 @@ public class TCPClient extends Client{
         out.writeUTF("siga");
         while (true) {
             int size = Integer.parseInt(in.readUTF());
-            for (int i = 0 ; i<size;i++) {
+            for (int i = 0; i < size; i++) {
                 System.out.println(in.readUTF());
             }
+            /*System.out.println("deseja fazer upload de algum dos ficheiros?selecione:/-1 exit:");
+            ctl = sc.nextInt();
+            out.writeUTF(String.valueOf(ctl));
+            if (ctl!=-1) {
+                String file_criar;
+                file_criar = in.readUTF();
+                download(file_criar);
+            }*/
+
+
             System.out.println("Introduce a directory number OR ENTER.\n-1.Return to previous directory.\n-2.Exit");
             ctl = sc.nextInt();
             System.out.println(path);
@@ -155,23 +247,20 @@ public class TCPClient extends Client{
 
                 out.writeUTF("sair");
                 break;
-            }
-
-            else if(ctl == -1){
-                path = path.replace("\\"," ");
+            } else if (ctl == -1) {
+                path = path.replace("\\", " ");
                 System.out.println(path);
                 String retPath = "";
 
                 String[] toks;
                 toks = path.split(" ");
 
-                for(int j = 0; j < toks.length - 1; j++){
+                for (int j = 0; j < toks.length - 1; j++) {
                     //System.out.println(toks[j]);
 
-                    if (j==toks.length-2){
+                    if (j == toks.length - 2) {
                         retPath += toks[j];
-                    }
-                    else{
+                    } else {
                         retPath += toks[j] + "\\";
                     }
                 }
@@ -184,11 +273,9 @@ public class TCPClient extends Client{
                 out.writeUTF(path);
                 System.out.println("enviei");
 
-            }
-
-            else{
-                path += "\\" + files[ctl].getName() ;
-                System.out.println("helllllo"+path);
+            } else {
+                path += "\\" + files[ctl].getName();
+                System.out.println("helllllo" + path);
                 dir = new File(path);
                 files = dir.listFiles();
                 out.writeUTF("siga");
@@ -196,6 +283,7 @@ public class TCPClient extends Client{
                 //System.out.println(path);
             }
         }
+
     }
 
 
@@ -224,6 +312,7 @@ public class TCPClient extends Client{
             ctl = sc.nextInt();
             System.out.println(path);
             if (ctl == -2) {
+                pathCliente = path;
                 break;
             }
 
