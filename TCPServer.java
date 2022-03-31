@@ -10,10 +10,12 @@ public class TCPServer {
     ServerSocket listenSocket;
     private int serverPort;
     private static String address;
+    private static boolean primario;
     private static final int timeout = 2000;
-    private boolean primario;
+    private static final int BUF_SIZE=1024;
     private int bufsize=100;
     private int max_falhas=5;
+    private static int max_clientes=10;
     public final static int FILE_SIZE = 6022386;
     private ArrayList<Client> listaClientes = new ArrayList<>();
 
@@ -22,15 +24,16 @@ public class TCPServer {
         this.serverPort=porto;
     }
 
-    private void ligacaoComCliente(int porto){
+    private void ligacaoComCliente(int porto, int max_clientes, String endereco){
         try  {
-            listenSocket = new ServerSocket(porto);
+            listenSocket =  new ServerSocket(porto, max_clientes, InetAddress.getByName(endereco));
             System.out.println("A escuta no porto "+porto);
             System.out.println("LISTEN SOCKET=" + listenSocket);
+                //le_ficheiro();
             while (true) {
                 Socket clientSocket = listenSocket.accept(); // BLOQUEANTE
                 System.out.println("Novo cliente conectado");
-                new Connection(clientSocket);
+                new Connection(clientSocket, listenSocket);
             }
         } catch (IOException e) {
             System.out.println("Listen:" + e.getMessage());
@@ -39,16 +42,23 @@ public class TCPServer {
 
     private void iniciar(int numero) throws FileNotFoundException {
         //ler ficheiro de configuracao de clientes e adiciona na arraylist
-        le_ficheiro();
+        System.out.println(primario+"oi9oioioioio");
+
 
         if(numero==1){
+            this.primario=true;
+            le_ficheiro();
             FailOverPrim failPrim = new FailOverPrim();
             failPrim.start();
-            ligacaoComCliente(serverPort);
+            //ligacaoComCliente(serverPort);
+            ligacaoComCliente(serverPort, max_clientes, address);
 
         }
 
         if(numero==2){
+            this.primario=false;
+            le_ficheiro();
+            System.out.println(primario);
             FailOverSec server2 = new FailOverSec();
             server2.run();
             //espera que a thread termine
@@ -57,10 +67,11 @@ public class TCPServer {
             }catch(InterruptedException e){
                 System.out.println("Erro! Thread interrompida");
             }
-            this.primario=true;
+
             FailOverPrim subServer = new FailOverPrim();
             subServer.start();
-            ligacaoComCliente(serverPort);
+            //ligacaoComCliente(serverPort);
+            ligacaoComCliente(serverPort, max_clientes, address);
         }
 
     }
@@ -76,6 +87,8 @@ public class TCPServer {
     }
 
     public void le_ficheiro() {
+        System.out.println(primario+"aquiiiiiiiiiii");
+        Client aux;
         File ficheiro = new File("config_clients.txt");
         try {
             FileReader fr = new FileReader(ficheiro);
@@ -87,13 +100,29 @@ public class TCPServer {
                 line = line.replace("]","");
                 campos = line.split(",");
                 if (check_directory(campos[7],campos[0])){
-                    Client aux = new Client(campos[0], campos[1], campos[2], campos[3], campos[4],
-                            campos[5], campos[6], campos[7] + "\\" + campos[0]);
+                    if (primario){
+                         aux = new Client(campos[0], campos[1], campos[2], campos[3], campos[4],
+                                campos[5], campos[6], campos[7] + "\\" + campos[0]);
+
+                    }
+                    else {
+                        System.out.println("li pra diretoria sec");
+                         aux = new Client(campos[0], campos[1], campos[2], campos[3], campos[4],
+                                campos[5], campos[6], campos[8] + "\\" + campos[0]);
+                    }
                     this.listaClientes.add(aux);
                 }
                 else{
-                    Client aux = new Client(campos[0], campos[1], campos[2], campos[3], campos[4],
-                            campos[5], campos[6], campos[7] );
+                    if (primario){
+                        aux = new Client(campos[0], campos[1], campos[2], campos[3], campos[4],
+                                campos[5], campos[6], campos[7]);
+
+                    }
+                    else {
+                        System.out.println("li pra diretoria sec");
+                        aux = new Client(campos[0], campos[1], campos[2], campos[3], campos[4],
+                                campos[5], campos[6], campos[8] );
+                    }
                     this.listaClientes.add(aux);
                 }
             }
@@ -107,7 +136,6 @@ public class TCPServer {
     private boolean check_directory( String diretoria,String user){
         String [] divide;
         divide = diretoria.split("\\\\");
-        System.out.println(divide.length);
         if ( divide.length < 7 || divide[6].equals(user)){
             return false;
         }
@@ -206,12 +234,14 @@ public class TCPServer {
         DataInputStream in;
         DataOutputStream out;
         Socket clientSocket;
+        ServerSocket servSocket;
         ArrayList<Client> listaClientes;
         int thread_number;
 
-        public Connection(Socket aClientSocket) {
+        public Connection(Socket aClientSocket, ServerSocket ss) {
             try {
                 clientSocket = aClientSocket;
+                servSocket=ss;
                 in = new DataInputStream(clientSocket.getInputStream());
                 out = new DataOutputStream(clientSocket.getOutputStream());
 
@@ -231,7 +261,7 @@ public class TCPServer {
                     Client c=login(username, password);
                     if(c!=null){
                         out.writeBoolean(true);
-                        menuServidor(c, in, out);
+                        menuServidor(servSocket, c, in, out);
                         //atualizar o ficheiro com novas diretorias
                         escreve_ficheiro();
                     }
@@ -249,7 +279,7 @@ public class TCPServer {
     }
 
     //menu do lado do servidor
-    private void menuServidor(Client c, DataInputStream in, DataOutputStream out) throws IOException {
+    private void menuServidor(ServerSocket servSocket, Client c, DataInputStream in, DataOutputStream out) throws IOException {
         int opcao;
         do {
             opcao = in.readInt();
@@ -260,7 +290,8 @@ public class TCPServer {
             }
             if(opcao ==2){
                 System.out.println("Alterar configuracoes");
-                altera_config(c,in,out);
+                altera_config(servSocket, c,in,out);
+                servSocket.close();
                 opcao = 0;
             }
             if (opcao ==3){
@@ -294,16 +325,28 @@ public class TCPServer {
 
     }
 
-    private synchronized void altera_config(Client c, DataInputStream in, DataOutputStream out) {
-        try {
-            String novo_endereco=in.readUTF();
-            String novo_porto = in.readUTF();
-            this.serverPort = Integer.parseInt(novo_porto);
-            this.address = novo_endereco;
-
-
-        } catch (IOException e) {
+    private synchronized void altera_config(ServerSocket s, Client c, DataInputStream in, DataOutputStream out) {
+        int server=0;
+        String novo_endereco;
+        String novo_porto;
+        try{
+            server = in.readInt();
+        }catch(IOException e){
             e.printStackTrace();
+        }
+
+        if(server==1) {
+            try {
+                novo_endereco = in.readUTF();
+                novo_porto = in.readUTF();
+                this.serverPort = Integer.parseInt(novo_porto);
+                this.address = novo_endereco;
+                System.out.println("Novo endereco: "+this.address+"\t"+"Novo porto:"+this.serverPort);
+                s.close();
+                ligacaoComCliente(this.serverPort, max_clientes, this.address);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -439,7 +482,10 @@ public class TCPServer {
                 String linha = raf.nextLine();
                 String[] split_linha = linha.split(",");
                 if (split_linha[0].equals(c.getNome())) {
-                    split_linha[7] = atualizacao;//so atualiza diretoria do user
+                    if (primario)
+                        split_linha[7] = atualizacao;//so atualiza diretoria do user
+                    else
+                        split_linha[8]=atualizacao;
                     nova_linha.append(Arrays.toString(split_linha)+"\n");
                 }
                 else{
@@ -523,6 +569,14 @@ public class TCPServer {
             System.out.println("File " + c.getDiretoria_atual()+ "\\" + file_criar
                     + " downloaded (" + current + " bytes read)");
             //de user para servidor
+            if(primario){
+                System.out.println("enviei backup");
+                envia_para_backup(c.getDiretoria_atual()+ "\\" + file_criar);//passar path completo do ficheiro a enviar
+            }
+            /*else{
+                System.out.println("entrei aqui");
+                recebe_backup("C:\\Users\\joaog\\OneDrive\\Documentos\\diretoriaserversec\\user1"+file_criar);//passar path completo do sitio onde guardar o ficheiro (incluindo o nome do ficheiro no fim do path)
+            }*/
             //replicar
             //escrevo na diretoria
         } catch (IOException e) {
@@ -547,6 +601,71 @@ public class TCPServer {
             bw.close();
         }catch(IOException ex){
             System.out.println("Erro a escrever no ficheiro");
+        }
+    }
+
+    public static void recebe_backup(String path){
+        try (DatagramSocket socket = new DatagramSocket(6000)) {
+            FileOutputStream fos = new FileOutputStream(path);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            int tam_fich;
+            byte[] buffer = new byte[BUF_SIZE];
+            DatagramPacket request = new DatagramPacket(buffer, buffer.length);
+            socket.receive(request);
+            String s = new String(request.getData(), 0, request.getLength());
+            tam_fich=Integer.parseInt(s);
+            System.out.println("Tamanho:"+tam_fich);
+            int nr_iteracoes = tam_fich/BUF_SIZE;
+            int i=0;
+            while(i<=nr_iteracoes){
+                request = new DatagramPacket(buffer, buffer.length);
+                socket.receive(request);
+                fos.write(buffer,0,buffer.length);
+                fos.flush();
+                i++;
+            }
+            fos.close();
+        } catch (SocketException e) {
+            System.out.println("Socket: " + e.getMessage());
+        }catch(IOException e){
+            System.out.println("IOException: "+e.getMessage());
+        }
+    }
+
+    public static void envia_para_backup(String path){
+        try (DatagramSocket ds = new DatagramSocket()) {
+            File fich = new File(path);
+            FileInputStream fis;
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            DataOutputStream dos = new DataOutputStream(baos);
+            byte [] data;
+            byte [] buffer = new byte[BUF_SIZE];
+
+            fis = new FileInputStream(fich);
+            System.out.println("Tam fich:"+fis.available());
+            dos.writeLong(fis.available());
+            String s= String.valueOf((int)fis.available());
+            data = s.getBytes();
+            DatagramPacket dp = new DatagramPacket(data, data.length, InetAddress.getByName("localhost"), 6000);
+            ds.send(dp);
+
+            int nread;
+            do{
+                nread = fis.read(buffer);
+                if(nread>0){
+                    DatagramPacket clpkt=new DatagramPacket(buffer,nread,InetAddress.getByName("localhost"),6000);
+                    ds.send(clpkt);
+                }
+            }while(nread!= -1);
+            dos.close();
+            fis.close();
+
+        }catch (SocketException e){
+            System.out.println("Socket: " + e.getMessage());
+        }catch(FileNotFoundException e){
+            System.out.println("FileNotFoundException: "+e.getMessage());
+        }catch(IOException e){
+            System.out.println("IOException: "+e.getMessage());
         }
     }
 

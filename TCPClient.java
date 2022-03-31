@@ -13,7 +13,6 @@ public class TCPClient extends Client{
 
     private static String pathCliente = "C:\\Users\\joaog\\OneDrive\\Documentos\\diretoriaspc";
 
-
     public static void main(String[] args) {
         // args[0] <- hostname of destination
         if (args.length != 2) {
@@ -100,7 +99,8 @@ public class TCPClient extends Client{
                 opcao=0;
             }
             if (opcao==2){
-                configura_fail(in,out);
+                configura_servers(in,out);
+                System.exit(0);
                 opcao=0;
             }
             if (opcao==3){
@@ -127,8 +127,18 @@ public class TCPClient extends Client{
         out.writeUTF(novaPass);
     }
 
-    private static void configura_fail(DataInputStream in,DataOutputStream out) throws IOException{
+    private static void configura_servers(DataInputStream in,DataOutputStream out) throws IOException{
+        int nr_server=0;
         Scanner sc = new Scanner(System.in);
+        System.out.print("Escolher server (1 ou 2):");
+        nr_server = sc.nextInt();
+        while(nr_server!=1 && nr_server!=2){
+            System.out.println("Erro! Escolher entre 1 e 2");
+            System.out.print("Escolher server (1 ou 2):");
+            nr_server = sc.nextInt();
+        }
+        out.writeInt(nr_server);
+        sc.nextLine();
         System.out.print("Novo endereco:");
         String novo_ping = sc.nextLine();
         System.out.print("Novo porto:");
